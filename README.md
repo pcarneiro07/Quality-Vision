@@ -18,9 +18,9 @@ Quality Vision é uma resposta direta a esse problema. O sistema recebe a foto d
 
 O projeto usa o [Real-Life Industrial Dataset of Casting Product](https://www.kaggle.com/datasets/ravirajsinh45/real-life-industrial-dataset-of-casting-product), composto por 7.348 imagens reais de impellers (rodas de bomba d'água) capturadas em ambiente industrial.
 
-As imagens foram obtidas em condições altamente controladas: mesma câmera, mesmo ângulo de captura, fundo branco uniforme e iluminação constante. Essa padronização é intencional no contexto industrial — linhas de inspeção automatizada operam exatamente assim, com a peça posicionada de forma fixa diante de uma câmera estacionária.
+As imagens foram obtidas em condições altamente controladas: mesma câmera, mesmo ângulo de captura, fundo branco uniforme e iluminação constante. Essa padronização é intencional no contexto industrial, linhas de inspeção automatizada operam exatamente assim, com a peça posicionada de forma fixa diante de uma câmera estacionária.
 
-Essa característica do dataset explica diretamente a acurácia elevada alcançada no conjunto de teste. O modelo não precisa ser invariante a rotações arbitrárias, mudanças de perspectiva ou variações de iluminação severas — o ambiente de captura já elimina essas variáveis. Em implantação real, o mesmo ambiente controlado seria reproduzido na linha de produção, tornando a alta precisão sustentável.
+Essa característica do dataset explica diretamente a acurácia elevada alcançada no conjunto de teste. O modelo não precisa ser invariante a rotações arbitrárias, mudanças de perspectiva ou variações de iluminação severas, o ambiente de captura já elimina essas variáveis. Em implantação real, o mesmo ambiente controlado seria reproduzido na linha de produção, tornando a alta precisão sustentável.
 
 O dataset apresenta um desequilíbrio leve entre classes (3.137 peças OK vs 4.211 com defeito), o que foi considerado na avaliação ao priorizar métricas como Recall e F1-Score além da acurácia bruta.
 
@@ -65,13 +65,13 @@ quality-vision/
 
 O pipeline começa com o download automático do dataset via Kaggle API, sem nenhuma intervenção manual além de configurar as credenciais no `.env`. Na primeira execução, o script autentica, baixa e extrai os dados; nas seguintes, detecta que o dataset já existe e pula direto para o processamento.
 
-O pré-processamento consiste em redimensionar todas as imagens para 224×224 pixels (padrão ImageNet) e convertê-las para RGB. A divisão dos dados respeita a separação original do dataset — o conjunto de teste vem exclusivamente da pasta `test/` original, e o conjunto de validação é extraído estratificado a partir do `train/` original. Isso evita o data leakage descrito acima e garante que as métricas de avaliação reflitam desempenho real.
+O pré-processamento consiste em redimensionar todas as imagens para 224×224 pixels (padrão ImageNet) e convertê-las para RGB. A divisão dos dados respeita a separação original do dataset, o conjunto de teste vem exclusivamente da pasta `test/` original, e o conjunto de validação é extraído estratificado a partir do `train/` original. Isso evita o data leakage descrito acima e garante que as métricas de avaliação reflitam desempenho real.
 
 Os arquivos são salvos com prefixo indicando a origem (`train_` ou `test_`), eliminando colisões de nome entre splits.
 
 ### Modelo (`backend/model/model.py`)
 
-A escolha pelo MobileNetV2 pré-treinado no ImageNet foi deliberada. Redes mais pesadas como ResNet-50 ou EfficientNet-B4 entregariam ganhos marginais de precisão nesse dataset a um custo de memória e tempo de inferência proibitivos para uso em produção. O MobileNetV2 roda confortavelmente em 6GB de VRAM com batch size 32 e entrega inferência em menos de 50ms por imagem — viável para inspeção em linha.
+A escolha pelo MobileNetV2 pré-treinado no ImageNet foi deliberada. Redes mais pesadas como ResNet-50 ou EfficientNet-B4 entregariam ganhos marginais de precisão nesse dataset a um custo de memória e tempo de inferência proibitivos para uso em produção. O MobileNetV2 roda confortavelmente em 6GB de VRAM com batch size 32 e entrega inferência em menos de 50ms por imagem, viável para inspeção em linha.
 
 A cabeça de classificação substitui o classificador original por uma sequência com Dropout (0.5), camada densa de 1280→256 neurônios, ReLU, Dropout adicional (0.25) e saída única com BCEWithLogitsLoss. Usar logits diretamente (sem Sigmoid na saída) é numericamente mais estável durante o treino.
 
@@ -81,7 +81,7 @@ O treinamento segue uma estratégia de duas fases:
 
 **Fase 1 (épocas 1–6):** O backbone está congelado. Apenas a cabeça de classificação é treinada com learning rate `1e-3`. Essa fase aproveita as features do ImageNet sem correr o risco de destruí-las com gradientes grandes logo no início.
 
-**Fase 2 (a partir da época 7):** As últimas 5 camadas do backbone são descongeladas para fine-tuning com learning rate reduzido (`1e-4`). O modelo ajusta as representações de alto nível para as características específicas de superfícies metálicas fundidas.
+**Fase 2 (a partir da época 5):** As últimas 5 camadas do backbone são descongeladas para fine-tuning com learning rate reduzido (`1e-4`). O modelo ajusta as representações de alto nível para as características específicas de superfícies metálicas fundidas.
 
 Mixed Precision (FP16) está habilitado quando GPU está disponível, reduzindo o consumo de VRAM em ~40% e acelerando o treino sem perda de precisão.
 
@@ -93,15 +93,15 @@ Early stopping com paciência de 7 épocas e `ReduceLROnPlateau` evitam overfitt
 
 A API expõe dois endpoints de inferência. O `/predict` retorna a classificação e as probabilidades. O `/predict-gradcam` retorna o mesmo mais o mapa de atenção GradCAM sobreposto à imagem original, codificado em base64.
 
-O GradCAM funciona registrando hooks na última camada convolucional do MobileNetV2 (`features[-1]`, output 1280×7×7), extraindo os gradientes da predição em relação a essa camada, ponderando as ativações pelos gradientes médios (Global Average Pooling) e fazendo upsample para 224×224. O resultado é um heatmap que indica quais regiões da imagem mais influenciaram a decisão — vermelho intenso marca alta atenção, azul marca baixa atenção.
+O GradCAM funciona registrando hooks na última camada convolucional do MobileNetV2 (`features[-1]`, output 1280×7×7), extraindo os gradientes da predição em relação a essa camada, ponderando as ativações pelos gradientes médios (Global Average Pooling) e fazendo upsample para 224×224. O resultado é um heatmap que indica quais regiões da imagem mais influenciaram a decisão, vermelho intenso marca alta atenção, azul marca baixa atenção.
 
 Endpoints de monitoramento (`/metrics`, `/training-status`) são consultados pelo frontend via polling a cada 2 segundos durante o treinamento.
 
 ### Frontend (`frontend/src/`)
 
-Interface construída em React com TypeScript, sem UI library externa — todos os estilos são inline via objetos CSS-in-JS, o que elimina dependências de build e garante comportamento previsível. As cores e tokens de design são definidos via CSS variables no `index.css`.
+Interface construída em React com TypeScript, sem UI library externa, todos os estilos são inline via objetos CSS-in-JS, o que elimina dependências de build e garante comportamento previsível. As cores e tokens de design são definidos via CSS variables no `index.css`.
 
-O design segue uma estética escura industrial: fundo `#0a0c10`, superfícies em `#111318`, acento em `#00d4aa`. A tipografia mistura Inter para texto corrido e Space Mono para dados numéricos, métricas e identificadores — uma distinção visual que separa informação humana de informação de máquina.
+O design segue uma estética escura industrial: fundo `#0a0c10`, superfícies em `#111318`, acento em `#00d4aa`. A tipografia mistura Inter para texto corrido e Space Mono para dados numéricos, métricas e identificadores, uma distinção visual que separa informação humana de informação de máquina.
 
 O `DashboardPage` consome os logs de treinamento via polling e renderiza curvas de acurácia e loss em tempo real usando Recharts. Isso permite acompanhar o progresso do treinamento sem precisar ficar olhando para o terminal.
 
@@ -118,9 +118,9 @@ O modelo treinado com o pipeline completo (data leakage corrigido, augmentação
 | Recall | ~99% |
 | F1-Score | ~99% |
 
-O Recall elevado é especialmente relevante para o contexto industrial: significa que a taxa de falsos negativos (defeitos que passam como aprovados) é mínima — o erro de maior custo nesse domínio.
+O Recall elevado é especialmente relevante para o contexto industrial: significa que a taxa de falsos negativos (defeitos que passam como aprovados) é mínima, o erro de maior custo nesse domínio.
 
-Em testes com imagens fora do dataset — peças fotografadas com câmeras diferentes, iluminação variada e ângulos distintos — o modelo demonstrou generalização razoável, classificando corretamente peças com defeitos visualmente similares aos do dataset de treino. A augmentação com perspectiva aleatória e blur gaussiano foi determinante para esse resultado.
+Em testes com imagens fora do dataset, peças fotografadas com câmeras diferentes, iluminação variada e ângulos distintos, o modelo demonstrou generalização razoável, classificando corretamente peças com defeitos visualmente similares aos do dataset de treino. A augmentação com perspectiva aleatória e blur gaussiano foi determinante para esse resultado.
 
 ---
 
@@ -209,6 +209,6 @@ Acesse `localhost:5173`. O dashboard de métricas pode ser aberto durante o trei
 
 ## Limitações conhecidas
 
-O modelo foi treinado em imagens capturadas em ambiente controlado. A acurácia tende a cair em cenários com iluminação muito diferente, sombras fortes, ângulos incomuns ou peças de geometria muito distinta dos impellers do dataset original. Para uso em produção com tipos de peças diferentes, o recomendado é coletar um dataset próprio e realizar fine-tuning a partir dos pesos treinados.
+O modelo foi treinado em imagens capturadas em ambiente controlado e por isso os resultados do treinamento foram tão elevados. A acurácia tende a cair em cenários com iluminação muito diferente, sombras fortes, ângulos incomuns ou peças de geometria muito distinta dos impellers do dataset original. Para o aumento da generalização e uso em produção com tipos de peças diferentes, o recomendado é coletar um dataset próprio e variado, realizando fine-tuning a partir dos pesos treinados.
 
 O endpoint `/predict-gradcam` é mais lento que o `/predict` por precisar de um forward pass com gradientes habilitados. Para inspeção em alta velocidade, use `/predict` e acione o GradCAM apenas quando quiser investigar um resultado específico.
