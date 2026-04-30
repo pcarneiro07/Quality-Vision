@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Data (não versionar imagens brutas)
+data/raw/
+data/processed/
+
+# Modelos treinados (pesados para Git)
+models/checkpoints/*.pth
+
+# Logs
+logs/training_log.json
+logs/training.db
+logs/evaluation_results.json
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# VSCode
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db

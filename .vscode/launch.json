@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ETL: Preprocess",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/etl/preprocess.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Train: Model",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/model/train.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Evaluate: Model",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/model/evaluate.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "API: FastAPI",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["backend.api.main:app", "--reload", "--port", "8000"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
