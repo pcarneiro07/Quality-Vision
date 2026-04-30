@@ -28,15 +28,10 @@ FINETUNE_EPOCH = 5
 WEIGHT_DECAY = 1e-4
 NUM_WORKERS = 4
 
-# Reduzido de 0.18 → 0.12 para devolver ~300 imagens ao treino
-VAL_RATIO = 0.12
-
-# MixUp / CutMix: probabilidade de aplicar cada técnica por batch
 MIXUP_ALPHA = 0.3       # λ ~ Beta(α, α); 0 desativa MixUp
 CUTMIX_ALPHA = 0.5      # λ ~ Beta(α, α); 0 desativa CutMix
 MIXUP_PROB = 0.35       # probabilidade de aplicar MixUp em cada batch
 CUTMIX_PROB = 0.35      # probabilidade de aplicar CutMix em cada batch
-# Obs: se ambos forem sorteados no mesmo batch, CutMix tem prioridade
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
@@ -121,22 +116,6 @@ def get_transforms(split: str):
         transforms.ToTensor(),
         transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
     ])
-
-
-# ---------------------------------------------------------------------------
-# MixUp e CutMix — técnicas de regularização em nível de batch
-# ---------------------------------------------------------------------------
-# Ambas funcionam misturando dois exemplos do mesmo batch, forçando o modelo
-# a aprender representações suaves em vez de memorizar exemplos específicos.
-#
-# MixUp: combinação linear pixel-a-pixel de duas imagens + seus rótulos.
-#   img_mix = λ·img_a + (1-λ)·img_b,  label_mix = λ·label_a + (1-λ)·label_b
-#
-# CutMix: recorta uma região retangular de img_b e cola em img_a.
-#   O rótulo é misturado proporcionalmente à área do patch colado.
-#   É mais eficaz que MixUp para detecção de defeitos porque preserva
-#   regiões locais intactas (defeitos costumam ser localizados).
-# ---------------------------------------------------------------------------
 
 def mixup_batch(
     images: torch.Tensor,
